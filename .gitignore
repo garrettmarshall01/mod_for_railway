@@ -71,3 +71,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Explicitly ignore your local token file
+refresh_token.env
