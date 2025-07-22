@@ -3,3 +3,5 @@ Werkzeug==2.2.3
 requests
 beautifulsoup4
 python-dotenv
+google-cloud-firestore
+firebase-admin

@@ -1,6 +1,7 @@
 # Ignore sensitive files
 .env
 refresh_token.txt
+service_account.json
 
 # Bytecode and cache
 __pycache__/
