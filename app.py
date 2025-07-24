@@ -64,17 +64,6 @@ def refresh_access_token(refresh_token):
         print(f"❌ Failed to refresh token. Status: {response.status_code}, Body: {response.text}")
         return None
 
-# Step 1: Get a fresh access token on startup
-access_token = None
-startup_token = get_refresh_token_from_firestore()
-if startup_token:
-    token_data = refresh_access_token(startup_token)
-    if token_data:
-        access_token = token_data.get("access_token")
-        new_refresh_token = token_data.get("refresh_token")
-        if new_refresh_token:
-            store_refresh_token_in_firestore(new_refresh_token)
-
 # DEBUG ENDPOINT: Just retrieve current token
 @app.route('/debug-refresh-token', methods=['GET'])
 def debug_refresh_token():
@@ -117,7 +106,6 @@ def extract_main_image(page_url):
 # MAIN POST ROUTE
 @app.route("/create-social-post", methods=["POST"])
 def create_social_post():
-    global access_token
     data = request.get_json()
     source_url = data.get("url")
     category_id = data.get("categoryId")
@@ -132,6 +120,23 @@ def create_social_post():
             return jsonify({"error": "No image found at URL"}), 404
     except Exception as e:
         return jsonify({"error": f"Error extracting image: {str(e)}"}), 500
+
+    # ✅ Retrieve and refresh token inside the request
+    refresh_token = get_refresh_token_from_firestore()
+    if not refresh_token:
+        return jsonify({"error": "No refresh token found"}), 401
+
+    token_data = refresh_access_token(refresh_token)
+    if not token_data:
+        return jsonify({"error": "Unable to refresh access token"}), 401
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        return jsonify({"error": "No access token received"}), 401
+
+    new_refresh_token = token_data.get("refresh_token")
+    if new_refresh_token:
+        store_refresh_token_in_firestore(new_refresh_token)
 
     json_data = {
         "userId": "I9VZlLtgWN8UYrWRxgi6",
@@ -181,7 +186,6 @@ def create_social_post():
     except Exception as e:
         print(f"❌ Exception occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
 
 # ✅ Railway-compatible port setup
 if __name__ == "__main__":
