@@ -158,18 +158,30 @@ def create_social_post():
         "Version": "2021-07-28"
     }
 
+    # ✅ LOGGING: Print debug info to Railway logs
+    print("🚀 Submitting post with the following data:")
+    print("🔐 Access Token:", access_token)
+    print("📤 JSON Payload:", json.dumps(json_data, indent=2))
+    print("📫 Headers:", json.dumps(headers, indent=2))
+
     try:
         response = requests.post(
             f"https://services.leadconnectorhq.com/social-media-posting/{LOCATION_ID}/posts",
             headers=headers,
             json=json_data,
         )
+
+        print(f"✅ Received response. Status: {response.status_code}")
+        print("🧾 Response Body:", response.text)
+
         return jsonify({
             "status_code": response.status_code,
             "response": response.json()
         })
     except Exception as e:
+        print(f"❌ Exception occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 # ✅ Railway-compatible port setup
 if __name__ == "__main__":
