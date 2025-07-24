@@ -64,29 +64,25 @@ def refresh_access_token(refresh_token):
         print(f"❌ Failed to refresh token. Status: {response.status_code}, Body: {response.text}")
         return None
 
-# DEBUG ENDPOINT: Just retrieve current token
-@app.route('/debug-refresh-token', methods=['GET'])
-def debug_refresh_token():
-    token = get_refresh_token_from_firestore()
-    return jsonify({"refresh_token": token})
+# Utility: Refresh and store token in one step
+def refresh_and_store_token():
+    refresh_token = get_refresh_token_from_firestore()
+    if not refresh_token:
+        return None, "No refresh token found"
 
-# DEBUG ENDPOINT: Call OAuth and return new token
-@app.route('/debug-token-refresh', methods=['GET'])
-def debug_token_refresh():
-    current_token = get_refresh_token_from_firestore()
-    if not current_token:
-        return jsonify({"error": "No refresh token in Firestore"}), 404
+    token_data = refresh_access_token(refresh_token)
+    if not token_data:
+        return None, "Unable to refresh access token"
 
-    token_response = refresh_access_token(current_token)
-    if token_response:
-        new_refresh_token = token_response.get("refresh_token")
+    access_token = token_data.get("access_token")
+    new_refresh_token = token_data.get("refresh_token")
+    if new_refresh_token:
         store_refresh_token_in_firestore(new_refresh_token)
-        return jsonify({
-            "access_token": token_response.get("access_token"),
-            "new_refresh_token": new_refresh_token
-        })
-    else:
-        return jsonify({"error": "Failed to refresh token"}), 500
+
+    if not access_token:
+        return None, "No access token received"
+
+    return access_token, None
 
 # Utility: Scrape Open Graph or fallback image
 def extract_main_image(page_url):
@@ -121,22 +117,10 @@ def create_social_post():
     except Exception as e:
         return jsonify({"error": f"Error extracting image: {str(e)}"}), 500
 
-    # ✅ Retrieve and refresh token inside the request
-    refresh_token = get_refresh_token_from_firestore()
-    if not refresh_token:
-        return jsonify({"error": "No refresh token found"}), 401
-
-    token_data = refresh_access_token(refresh_token)
-    if not token_data:
-        return jsonify({"error": "Unable to refresh access token"}), 401
-
-    access_token = token_data.get("access_token")
-    if not access_token:
-        return jsonify({"error": "No access token received"}), 401
-
-    new_refresh_token = token_data.get("refresh_token")
-    if new_refresh_token:
-        store_refresh_token_in_firestore(new_refresh_token)
+    # ✅ Refresh token and get access token
+    access_token, error = refresh_and_store_token()
+    if error:
+        return jsonify({"error": error}), 401
 
     json_data = {
         "userId": "I9VZlLtgWN8UYrWRxgi6",
